@@ -1,150 +1,44 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مونوبولي ذي قار الملكية</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <style>
-        body { background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
-        .hidden { display: none !important; }
-        
-        /* خريطة 11x11 متجاوبة سيدي */
-        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 98vw; height: 98vw; background: #2ecc71; border: 4px solid #27ae60; margin: 5px auto; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        .cell { background: #f9f9f9; border: 0.1px solid #bdc3c7; color: #2c3e50; font-size: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-weight: bold; text-align: center; }
-        .price-tag { color: #27ae60; font-size: 4px; margin-top: 1px; }
-        .owner-tag { position: absolute; top: 0; width: 100%; height: 4px; z-index: 5; }
-        .token { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid white; position: absolute; z-index: 100; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        
-        /* الركن السفلي سيدي للنرد والمعلومات */
-        #controls { background: #2c3e50; padding: 12px; display: flex; justify-content: space-around; align-items: center; border-top: 4px solid #e67e22; position: fixed; bottom: 0; width: 100%; z-index: 1000; box-sizing: border-box; }
-        .dice-btn { background: #e67e22; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: none; color: white; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .dice-btn:active { transform: scale(0.9); }
-        .dice-val { font-size: 30px; background: white; color: #333; padding: 5px 15px; border-radius: 8px; border: 2px solid #e67e22; min-width: 45px; text-align: center; font-weight: bold; }
-        .shake { animation: shake 0.3s infinite; }
-        @keyframes shake { 0% { transform: rotate(0); } 25% { transform: rotate(10deg); } 75% { transform: rotate(-10deg); } 100% { transform: rotate(0); } }
-    </style>
-</head>
-<body>
+<style>
+    /* الصورة المركزية في وسط اللوحة */
+    .board-center {
+        grid-column: 2 / 11;
+        grid-row: 2 / 11;
+        background-image: url('https://i.imgur.com/your-image-url.jpg'); /* ضع رابط صورتك هنا سيدي */
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        opacity: 0.8;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .center-logo {
+        width: 80%;
+        filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+    }
+</style>
 
-<div id="lobby" style="text-align: center; padding-top: 80px;">
-    <h1 style="color: #e67e22; font-size: 2.5em;">🏛️ ذي قار الملكية</h1>
-    <p>أهلاً بك في نسختك الخاصة سيدي</p>
-    <input id="p-name" placeholder="اسمك الملكي" style="padding: 12px; margin: 10px; width: 200px; border-radius: 8px; border: none;">
-    <input id="r-id" placeholder="رقم الغرفة" style="padding: 12px; margin: 10px; width: 200px; border-radius: 8px; border: none;">
-    <br>
-    <button onclick="enterGame()" style="padding: 15px 50px; background: #e67e22; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold;">بدء الغزوات</button>
-</div>
-
-<div id="game-screen" class="hidden">
-    <div class="board" id="board"></div>
-    <div id="controls">
-        <div style="text-align: right;">
-            <div id="money-info" style="color: #2ecc71; font-size: 22px; font-weight: bold;">💰 2000$</div>
-            <div id="turn-txt" style="font-size: 11px; color: #ecf0f1;">بانتظار دورك...</div>
-        </div>
-        <div id="dice-box" class="dice-val">🎲</div>
-        <button id="roll-btn" class="dice-btn" onclick="roll()">ارمي الزار</button>
+<div class="board" id="board">
+    <div class="board-center">
+        <h2 style="color: #2c3e50; font-size: 20px; font-weight: bold; margin: 0;">ذي قار</h2>
+        <p style="color: #27ae60; font-size: 10px;">إصدار المملكة</p>
     </div>
 </div>
 
 <script>
-    const socket = io();
-    let myRoom, myName, myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
-    let playerPositions = {};
-
-    // توزيع الـ 40 منطقة الاحترافي سيدي
-    const names = ["الثورة", "الشموخ", "أريدو", "السكك", "سومر", "المنصورية", "الحبوبي", "الجبايش", "سوق الشيوخ", "الإسكان", "أور", "الفهود", "النصر", "الرفاعي", "الشطرة", "الغدير", "الإصلاح", "قلعة سكر", "الدواية", "البطحاء"];
-    const zones = [];
-    for(let i=0; i<40; i++) {
-        if(i === 0) zones.push({n: "البداية", t: "start", i: "🚩", p: 0});
-        else if(i === 10) zones.push({n: "سجن الحوت", t: "jail", i: "⛓️", p: 0});
-        else if(i === 20) zones.push({n: "مواقف مجانية", t: "park", i: "🅿️", p: 0});
-        else if(i === 30) zones.push({n: "اذهب للسجن!", t: "to_jail", i: "👮", p: 0});
-        else if(i % 5 === 0 && i % 10 !== 0) zones.push({n: "صندوق الحظ", t: "luck", i: "📦", p: 0});
-        else if(i % 5 === 5 || i === 5 || i === 15 || i === 25 || i === 35) zones.push({n: "محطة القطار", t: "p", i: "🚉", p: 200});
-        else zones.push({n: names[i % names.length], t: "p", p: 100 + (i*12), i: "🏘️"});
-    }
-
-    function enterGame() {
-        myRoom = document.getElementById('r-id').value;
-        myName = document.getElementById('p-name').value;
-        if(!myRoom || !myName) return alert("سيدي، املأ البيانات أولاً!");
-        socket.emit('create_room', {room: myRoom});
-        socket.emit('join_game', {room: myRoom, name: myName, color: myColor});
-    }
-
-    socket.on('join_success', () => {
-        document.getElementById('lobby').style.display = 'none';
-        document.getElementById('game-screen').classList.remove('hidden');
-        renderBoard();
-    });
-
-    function renderBoard() {
-        const b = document.getElementById('board'); b.innerHTML = "";
-        for(let i=0; i<40; i++) {
-            let r, c;
-            if(i<11) { r=1; c=i+1; } else if(i<20) { r=i-9; c=11; } else if(i<31) { r=11; c=31-i; } else { r=41-i; c=1; }
-            let d = document.createElement('div'); d.className = 'cell'; d.id = 'z-' + i;
-            d.style.gridRow = r; d.style.gridColumn = c;
-            d.innerHTML = `<div class="owner-tag" id="tag-${i}"></div><span style="font-size: 8px;">${zones[i].i}</span><div style="transform: scale(0.8)">${zones[i].n}</div><div class="price-tag">${zones[i].p ? zones[i].p+'$' : ''}</div>`;
-            b.appendChild(d);
-        }
-    }
-
-    function roll() {
-        document.getElementById('dice-box').classList.add('shake');
-        socket.emit('roll_dice', {room: myRoom});
-    }
-
-    socket.on('dice_result', async (data) => {
-        const p = data.game.players.find(pl => pl.name === data.roller);
-        document.getElementById('dice-box').classList.remove('shake');
-        document.getElementById('dice-box').innerText = data.steps;
-        
-        let currentPos = playerPositions[p.name] || 0;
-        for(let i=0; i<data.steps; i++) {
-            currentPos = (currentPos + 1) % 40;
-            updateUI(p.name, currentPos, p.color);
-            await new Promise(r => setTimeout(r, 250)); // سرعة المشي سيدي
-        }
-        playerPositions[p.name] = p.pos;
-        if(data.roller === myName) handleAction(p.pos, data.game);
-    });
-
-    function updateUI(name, pos, color) {
-        let old = document.getElementById('t-' + name); if(old) old.remove();
-        let t = document.createElement('div'); t.className = 'token'; t.id = 't-' + name;
-        t.style.background = color;
-        document.getElementById('z-' + pos).appendChild(t);
-    }
-
+    // تحديث دالة handleAction لتشمل دفع الكفالة سيدي
     function handleAction(pos, game) {
         const zone = zones[pos];
-        if(zone.t === 'p' && !game.properties[pos]) {
-            if(confirm(`هل تود شراء ${zone.n} بـ ${zone.p}$ سيدي؟`)) {
-                socket.emit('buy_land', {room: myRoom, name: myName, price: zone.p, land_name: zone.n});
-            }
-        } else if(zone.t === 'luck') {
-            let win = (Math.floor(Math.random()*6)+1)*40;
-            alert(`📦 الحظ ابتسم لك: ربحت ${win}$ سيدي!`);
-            socket.emit('update_money', {room: myRoom, name: myName, amount: win});
-        }
-    }
+        const player = game.players.find(p => p.name === myName);
 
-    socket.on('update_game', (game) => {
-        game.players.forEach(p => {
-            if(!playerPositions[p.name]) updateUI(p.name, p.pos, p.color);
-            if(p.name === myName) document.getElementById('money-info').innerText = "💰 " + p.money + "$";
-        });
-        for(let pos in game.properties) {
-            const owner = game.players.find(pl => pl.name === game.properties[pos]);
-            if(owner) document.getElementById('tag-'+pos).style.background = owner.color;
+        if(pos === 10 && player.jail_turns > 0) {
+            if(confirm("هل تريد دفع 100$ كفالة للخروج فوراً سيدي؟")) {
+                socket.emit('update_money', {room: myRoom, name: myName, amount: -100});
+                player.jail_turns = 0;
+                // إخبار السيرفر بتصفير السجن سيدي
+            }
         }
-        const turnP = game.players[game.turn];
-        document.getElementById('turn-txt').innerText = "دور الملك: " + turnP.name;
-        document.getElementById('roll-btn').disabled = (turnP.name !== myName);
-    });
+        // باقي منطق الشراء والحظ...
+    }
 </script>
-</body>
-</html>

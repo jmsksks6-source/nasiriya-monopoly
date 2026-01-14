@@ -3,198 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مونوبولي ذي قار الملكية</title>
+    <title>ذي قار الملكية - Ultimate</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body { background: #1a1a1a; color: white; font-family: sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+        body { background: #121212; color: white; font-family: 'Cairo', sans-serif; margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         .hidden { display: none !important; }
         
-        /* اللوحة 11x11 */
-        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 98vw; height: 98vw; background: #27ae60; border: 2px solid #2ecc71; margin: 2px auto; position: relative; }
-        .cell { background: #ecf0f1; border: 0.5px solid #bdc3c7; color: #2c3e50; font-size: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-weight: bold; text-align: center; overflow: hidden; }
-        .price-tag { color: #27ae60; font-size: 4px; margin-top: 1px; }
-        .owner-tag { position: absolute; top: 0; width: 100%; height: 3px; z-index: 5; }
+        /* اللوحة مع المؤثرات */
+        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 98vw; height: 98vw; background: #2c3e50; border: 2px solid #f1c40f; margin: 2px auto; box-shadow: 0 0 20px rgba(241, 196, 15, 0.2); }
+        .cell { background: #ecf0f1; border: 0.5px solid #95a5a6; color: #2c3e50; font-size: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-weight: bold; text-align: center; }
+        .station { background: #bdc3c7; color: #2c3e50; }
+        .corner { background: #f39c12; color: white; }
         
-        /* الصورة المركزية: استخدام رابط ثابت جداً */
+        /* الصورة المركزية المضمونة */
         .board-center { 
-            grid-column: 2 / 11; 
-            grid-row: 2 / 11; 
+            grid-column: 2 / 11; grid-row: 2 / 11; 
+            background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Dhi_Qar_in_Iraq.svg/1024px-Dhi_Qar_in_Iraq.svg.png') center/50% no-repeat;
             background-color: #27ae60;
-            /* صورة زخرفية أو خريطة كخلفية */
-            background-image: url('https://upload.wikimedia.org/wikipedia/commons/e/ec/Dhi_Qar_in_Iraq.svg'); 
-            background-size: 50%;
-            background-repeat: no-repeat;
-            background-position: center;
-            display: flex; 
-            flex-direction: column;
-            align-items: center; 
-            justify-content: center; 
-            opacity: 0.9;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.95;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
         }
-        .center-text { background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 10px; color: #c0392b; font-size: 14px; font-weight: bold; margin-top: 80px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-
-        .token { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid white; position: absolute; z-index: 100; transition: all 0.3s ease; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
         
-        /* التحكم السفلي */
-        #controls { background: #2c3e50; padding: 8px; display: flex; justify-content: space-around; align-items: center; border-top: 3px solid #e67e22; position: fixed; bottom: 0; width: 100%; z-index: 1000; box-sizing: border-box; height: 80px; }
-        .dice-btn { background: #e67e22; padding: 10px 25px; border-radius: 8px; font-weight: bold; border: none; color: white; font-size: 14px; box-shadow: 0 3px #a35400; }
-        .dice-btn:active { transform: translateY(2px); }
-        .dice-val { font-size: 28px; background: white; color: #333; padding: 2px 12px; border-radius: 6px; border: 2px solid #e67e22; }
-        .shake { animation: shake 0.4s infinite; }
-        @keyframes shake { 0% { transform: rotate(0); } 25% { transform: rotate(15deg); } 75% { transform: rotate(-15deg); } 100% { transform: rotate(0); } }
+        /* مؤشرات المنازل واللاعبين */
+        .owner-bar { position: absolute; top: 0; width: 100%; height: 3px; }
+        .houses-bar { position: absolute; bottom: 1px; display: flex; gap: 1px; }
+        .house-icon { width: 3px; height: 3px; background: #c0392b; border-radius: 50%; box-shadow: 0 0 2px black; }
+        .token { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; position: absolute; z-index: 99; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 3px 6px rgba(0,0,0,0.4); }
+
+        /* واجهة التحكم */
+        #ui-layer { position: fixed; bottom: 0; width: 100%; height: 140px; background: linear-gradient(0deg, #1a1a1a 0%, rgba(26,26,26,0) 100%); pointer-events: none; }
+        #controls { pointer-events: auto; position: absolute; bottom: 10px; width: 100%; display: flex; justify-content: space-around; align-items: flex-end; padding: 0 10px; box-sizing: border-box; }
+        
+        .btn { background: #e67e22; color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: bold; font-family: 'Cairo'; box-shadow: 0 4px #d35400; transition: 0.1s; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 1px #d35400; }
+        .btn-trade { background: #3498db; box-shadow: 0 4px #2980b9; }
+        .btn-build { background: #27ae60; box-shadow: 0 4px #219150; display: none; }
+
+        /* قائمة اللاعبين */
+        #player-list { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 10px; border: 1px solid #f1c40f; z-index: 200; width: 120px; }
+        .p-item { font-size: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; border-bottom: 1px solid #555; padding-bottom: 2px; }
+
+        /* تأثيرات */
+        .dice-box { font-size: 30px; background: white; color: #333; padding: 5px 15px; border-radius: 10px; border: 3px solid #f1c40f; }
+        .shake { animation: shake 0.5s infinite; }
+        @keyframes shake { 0% { transform: rotate(0); } 25% { transform: rotate(15deg); } 75% { transform: rotate(-15deg); } }
     </style>
 </head>
 <body>
 
-<div id="lobby" style="text-align: center; padding-top: 80px;">
-    <h1 style="color: #e67e22;">🏛️ ذي قار الملكية</h1>
-    <input id="p-name" placeholder="اسمك سيدي" style="padding: 10px; border-radius: 5px; border: none;">
-    <input id="r-id" placeholder="رقم الغرفة" style="padding: 10px; border-radius: 5px; border: none;">
+<div id="lobby" style="text-align: center; margin-top: 30vh;">
+    <h1 style="color: #f1c40f; text-shadow: 0 0 10px #e67e22;">👑 ذي قار الملكية</h1>
+    <input id="u-name" placeholder="اسم الملك" style="padding: 12px; border-radius: 8px; border: none; text-align: center;">
+    <input id="r-name" placeholder="رقم الغرفة" style="padding: 12px; border-radius: 8px; border: none; text-align: center;">
     <br><br>
-    <button onclick="start()" style="padding: 10px 40px; background: #e67e22; color: white; border: none; border-radius: 5px; font-weight: bold;">دخول</button>
+    <button class="btn" onclick="joinGame()">دخول المملكة</button>
 </div>
 
-<div id="game-screen" class="hidden">
-    <div class="board" id="board">
+<div id="game" class="hidden">
+    <div id="player-list"></div> <div class="board" id="board">
         <div class="board-center">
-            <div class="center-text">ذي قار الملكية</div>
+            <h2 style="color: white; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;">ذي قار</h2>
         </div>
     </div>
-    <div id="controls">
-        <div style="text-align: right;">
-            <div id="money-info" style="color: #2ecc71; font-size: 18px; font-weight: bold;">💰 2000$</div>
-            <div id="msg-log" style="font-size: 8px; color: #ecf0f1; max-width: 150px; white-space: nowrap; overflow: hidden;">أهلاً بك...</div>
+
+    <div id="ui-layer">
+        <div id="controls">
+            <div style="text-align: right;">
+                <div id="my-money" style="font-size: 20px; color: #2ecc71; font-weight: bold;">0$</div>
+                <div id="status-txt" style="font-size: 10px; color: #bdc3c7;">انتظر...</div>
+            </div>
+            
+            <div id="dice-visual" class="dice-box">🎲</div>
+
+            <div style="display: flex; gap: 5px; flex-direction: column;">
+                <button id="roll-btn" class="btn" onclick="rollDice()">ارمي الزار</button>
+                <button id="trade-btn" class="btn btn-trade" onclick="openTrade()">🤝 مقايضة</button>
+                <button id="build-btn" class="btn btn-build" onclick="upgradeProp()">🏗️ تطوير</button>
+            </div>
         </div>
-        <div id="dice-box" class="dice-val">🎲</div>
-        <button id="roll-btn" class="dice-btn" onclick="roll()">ارمي الزار</button>
     </div>
 </div>
 
 <script>
     const socket = io();
-    let myRoom, myName, myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+    let myName, myRoom, myColor = '#'+Math.floor(Math.random()*16777215).toString(16);
+    let gameState = null;
     let playerPositions = {};
 
-    // التأكد من ترتيب المناطق ليطابق منطق السيرفر (30 = اذهب للسجن)
-    const names = ["الثورة", "الشموخ", "أريدو", "السكك", "سومر", "المنصورية", "الحبوبي", "الجبايش", "سوق الشيوخ", "الإسكان", "أور", "الفهود", "النصر", "الرفاعي", "الشطرة", "الغدير"];
-    const zones = [];
-    for(let i=0; i<40; i++) {
-        if(i === 0) zones.push({n: "البداية", t: "start", i: "🚩", p: 0});
-        else if(i === 10) zones.push({n: "سجن الحوت", t: "jail", i: "⛓️", p: 0}); // زاوية السجن
-        else if(i === 20) zones.push({n: "مواقف مجانية", t: "park", i: "🅿️", p: 0});
-        else if(i === 30) zones.push({n: "اذهب للسجن!", t: "to_jail", i: "👮", p: 0}); // زاوية الذهاب للسجن
-        else if(i % 5 === 0) zones.push({n: "حظ", t: "luck", i: "📦", p: 0});
-        else zones.push({n: names[i%names.length], t: "p", p: 100 + (i*10), i: "🏘️"});
-    }
+    // خريطة المناطق والأسماء (40 منطقة كاملة)
+    const zones = new Array(40).fill(null).map((_, i) => {
+        if(i===0) return {n:"البداية", t:"start", p:0, c:"corner"};
+        if(i===10) return {n:"السجن", t:"jail", p:0, c:"corner"};
+        if(i===20) return {n:"موقف مجاني", t:"park", p:0, c:"corner"};
+        if(i===30) return {n:"اذهب للسجن", t:"gotojail", p:0, c:"corner"};
+        if([5,15,25,35].includes(i)) return {n:"محطة قطار", t:"station", p:200, c:"station"};
+        if([2,7,17,22,33,36].includes(i)) return {n:"صندوق الحظ", t:"luck", p:0, c:"luck"};
+        if([12,28].includes(i)) return {n:"الكهرباء", t:"util", p:150, c:"luck"};
+        return {n:`منطقة ${i}`, t:"land", p:100 + (i*5), c:"land"};
+    });
+    // تسمية بعض المناطق المشهورة يدوياً للواقعية
+    const cityNames = {1:"الثورة", 3:"الشموخ", 6:"سوق الشيوخ", 9:"الفهود", 39:"الناصرية", 37:"الشطرة"};
+    for(let k in cityNames) zones[k].n = cityNames[k];
 
-    function start() {
-        myRoom = document.getElementById('r-id').value;
-        myName = document.getElementById('p-name').value;
-        if(!myRoom || !myName) return alert("البيانات ناقصة سيدي");
+    function joinGame() {
+        myName = document.getElementById('u-name').value;
+        myRoom = document.getElementById('r-name').value;
+        if(!myName) return alert("الاسم مطلوب سيدي!");
         socket.emit('create_room', {room: myRoom});
         socket.emit('join_game', {room: myRoom, name: myName, color: myColor});
     }
 
     socket.on('join_success', () => {
-        document.getElementById('lobby').style.display='none';
-        document.getElementById('game-screen').classList.remove('hidden');
+        document.getElementById('lobby').style.display = 'none';
+        document.getElementById('game').classList.remove('hidden');
         renderBoard();
     });
 
     function renderBoard() {
         const b = document.getElementById('board');
-        // الحفاظ على المركز
         const center = b.querySelector('.board-center');
-        b.innerHTML = "";
-        b.appendChild(center);
-
+        b.innerHTML = ''; b.appendChild(center);
+        
         for(let i=0; i<40; i++) {
             let r, c;
-            // خوارزمية الترتيب الصحيحة (عكس عقارب الساعة)
-            if(i<11) { r=11; c=11-i; } // الصف السفلي: يمين لليسار
-            else if(i<20) { r=11-(i-10); c=1; } // العمود الأيسر: تحت لفوق
-            else if(i<30) { r=1; c=(i-20)+1; } // الصف العلوي: يسار ليمين
-            else { r=(i-30)+1; c=11; } // العمود الأيمن: فوق لتحت
+            if(i<11) { r=11; c=11-i; }
+            else if(i<20) { r=11-(i-10); c=1; }
+            else if(i<31) { r=1; c=(i-20)+1; }
+            else { r=(i-30)+1; c=11; }
 
-            let d = document.createElement('div'); d.className = 'cell'; d.id = 'z-' + i;
+            let d = document.createElement('div');
+            d.className = `cell ${zones[i].c}`;
             d.style.gridRow = r; d.style.gridColumn = c;
-            d.innerHTML = `<div class="owner-tag" id="tag-${i}"></div><span>${zones[i].i}</span><div style="transform: scale(0.7)">${zones[i].n}</div><div class="price-tag">${zones[i].p ? zones[i].p+'$' : ''}</div>`;
+            d.id = `zone-${i}`;
+            
+            let content = `
+                <div class="owner-bar" id="bar-${i}"></div>
+                <span>${zones[i].t=='station'?'🚂':zones[i].t=='luck'?'❓':'🏠'}</span>
+                <div style="font-size:5px">${zones[i].n}</div>
+                <div style="font-size:4px; color:#27ae60">${zones[i].p>0?zones[i].p+'$':''}</div>
+                <div class="houses-bar" id="house-${i}"></div>
+            `;
+            d.innerHTML = content;
             b.appendChild(d);
         }
     }
 
-    function roll() {
-        document.getElementById('dice-box').classList.add('shake');
+    function rollDice() {
+        document.getElementById('dice-visual').classList.add('shake');
         socket.emit('roll_dice', {room: myRoom});
     }
 
+    function openTrade() {
+        let target = prompt("اكتب اسم اللاعب الذي تريد تحويل المال له:");
+        let amount = prompt("كم المبلغ؟");
+        if(target && amount) socket.emit('trade', {room: myRoom, sender: myName, receiver: target, amount: amount});
+    }
+
+    function upgradeProp() {
+        // البحث عن المنطقة التي يقف عليها اللاعب
+        let p = gameState.players.find(pl => pl.name === myName);
+        if(p) socket.emit('upgrade_land', {room: myRoom, name: myName, pos: p.pos});
+    }
+
     socket.on('dice_result', async (data) => {
-        const p = data.game.players.find(pl => pl.name === data.roller);
-        document.getElementById('dice-box').classList.remove('shake');
-        document.getElementById('dice-box').innerText = data.steps;
+        document.getElementById('dice-visual').classList.remove('shake');
+        document.getElementById('dice-visual').innerText = data.steps;
         
-        let currentPos = playerPositions[p.name] || 0;
-        // المشي خطوة بخطوة
-        if(p.jail_turns === 0 || (p.pos !== 10 && currentPos !== 10)) {
+        const p = data.game.players.find(pl => pl.name === data.roller);
+        let curr = playerPositions[p.name] || 0;
+        
+        // حركة تدريجية
+        if(!p.is_bankrupt) {
             for(let i=0; i<data.steps; i++) {
-                currentPos = (currentPos + 1) % 40;
-                updateUI(p.name, currentPos, p.color);
+                curr = (curr + 1) % 40;
+                moveToken(p.name, curr, p.color);
                 await new Promise(r => setTimeout(r, 200));
             }
         }
-        
-        // القفز للسجن إذا تم القبض عليه
-        if(p.pos === 10 && data.game.turn !== p.turn) { // إذا انتقل فجأة للسجن
-             updateUI(p.name, 10, p.color);
-        }
-
         playerPositions[p.name] = p.pos;
-        if(data.roller === myName) checkAction(p.pos, data.game);
+        if(p.name === myName) checkZone(p.pos, data.game);
     });
 
-    socket.on('log', (data) => {
-        document.getElementById('msg-log').innerText = data.msg;
-        document.getElementById('msg-log').style.color = '#e74c3c';
-        setTimeout(() => document.getElementById('msg-log').style.color = '#ecf0f1', 2000);
-    });
-
-    function updateUI(name, pos, color) {
-        let old = document.getElementById('t-' + name); if(old) old.remove();
-        let t = document.createElement('div'); t.className = 'token'; t.id = 't-' + name;
-        t.style.background = color;
-        document.getElementById('z-' + pos).appendChild(t);
+    function moveToken(name, pos, color) {
+        let old = document.getElementById(`t-${name}`);
+        if(old) old.remove();
+        let t = document.createElement('div');
+        t.className = 'token'; t.id = `t-${name}`;
+        t.style.backgroundColor = color;
+        document.getElementById(`zone-${pos}`).appendChild(t);
     }
 
-    function checkAction(pos, game) {
-        const zone = zones[pos];
-        if(zone.t === 'p' && !game.properties[pos]) {
+    function checkZone(pos, game) {
+        let zone = zones[pos];
+        if((zone.t === 'land' || zone.t === 'station' || zone.t === 'util') && !game.properties[pos]) {
             if(confirm(`هل تشتري ${zone.n} بـ ${zone.p}$؟`)) {
-                socket.emit('buy_land', {room: myRoom, name: myName, price: zone.p, land_name: zone.n});
+                socket.emit('buy_land', {room: myRoom, name: myName, price: zone.p, pos: pos});
             }
-        } else if(zone.t === 'luck') {
-            let win = (Math.floor(Math.random()*5)+1)*50;
-            alert(`📦 ربحت ${win}$ من الصندوق!`);
-            socket.emit('update_money', {room: myRoom, name: myName, amount: win});
+        }
+        
+        // تفعيل زر التطوير إذا كان المالك هو اللاعب الحالي
+        if(game.properties[pos] === myName && zone.t === 'land') {
+            document.getElementById('build-btn').style.display = 'block';
+        } else {
+            document.getElementById('build-btn').style.display = 'none';
         }
     }
 
     socket.on('update_game', (game) => {
+        gameState = game;
+        let listHtml = '';
+        
         game.players.forEach(p => {
-            if(!playerPositions[p.name]) updateUI(p.name, p.pos, p.color); // رسم أولي
-            if(p.name === myName) {
-                document.getElementById('money-info').innerText = "💰 " + p.money + "$";
-                document.getElementById('roll-btn').disabled = (game.players[game.turn].name !== myName);
-                if(game.players[game.turn].name === myName) {
-                    document.getElementById('msg-log').innerText = "دورك الآن سيدي!";
-                } else {
-                    document.getElementById('msg-log').innerText = "الدور عند: " + game.players[game.turn].name;
-                }
+            if(!p.is_bankrupt) {
+                if(!playerPositions[p.name]) moveToken(p.name, p.pos, p.color);
+                listHtml += `<div class="p-item" style="color:${p.color}"><span>${p.name}</span><span>${p.money}$</span></div>`;
+                if(p.name === myName) document.getElementById('my-money').innerText = p.money + "$";
             }
         });
+        document.getElementById('player-list').innerHTML = listHtml;
+        
+        // تحديث الملكية والمنازل
         for(let pos in game.properties) {
-            const owner = game.players.find(pl => pl.name === game.properties[pos]);
-            if(owner) document.getElementById('tag-'+pos).style.background = owner.color;
+            let owner = game.players.find(pl => pl.name === game.properties[pos]);
+            if(owner) {
+                document.getElementById(`bar-${pos}`).style.backgroundColor = owner.color;
+                // رسم المنازل
+                let hCount = game.houses[pos] || 0;
+                let hHtml = '';
+                for(let i=0; i<hCount; i++) hHtml += '<div class="house-icon"></div>';
+                document.getElementById(`house-${pos}`).innerHTML = hHtml;
+            }
         }
+
+        let turnPlayer = game.players[game.turn];
+        document.getElementById('status-txt').innerText = `الدور عند: ${turnPlayer.name}`;
+        document.getElementById('roll-btn').disabled = (turnPlayer.name !== myName);
+    });
+
+    socket.on('log', (data) => {
+        let n = document.createElement('div');
+        n.innerText = data.msg;
+        n.style.position = 'fixed'; n.style.top = '50%'; n.style.left = '50%';
+        n.style.transform = 'translate(-50%, -50%)'; n.style.background = 'rgba(0,0,0,0.8)';
+        n.style.padding = '20px'; n.style.borderRadius = '10px'; n.style.zIndex = '999';
+        document.body.appendChild(n);
+        setTimeout(() => n.remove(), 2000);
     });
 </script>
 </body>

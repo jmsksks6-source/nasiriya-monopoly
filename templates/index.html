@@ -2,74 +2,131 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>مونوبولي ذي قار سيدي</title>
+    <title>مونوبولي ذي قار - الملكية</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; background: #2c3e50; color: white; text-align: center; }
-        #game-board { 
-            display: grid; grid-template-columns: repeat(5, 100px); 
-            grid-template-rows: repeat(5, 100px); gap: 5px; 
-            margin: 20px auto; width: 520px; background: #ecf0f1; padding: 10px; border-radius: 10px;
+        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Cairo', sans-serif; overflow: hidden; }
+        #game-container { display: flex; height: 100vh; padding: 10px; box-sizing: border-box; }
+        
+        /* الخريطة الكبيرة */
+        .board { 
+            display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr);
+            flex: 2; aspect-ratio: 1/1; background: #2ecc71; border: 10px solid #27ae60; position: relative;
         }
-        .cell { background: #95a5a6; border: 2px solid #7f8c8d; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #2c3e50; font-weight: bold; position: relative; }
-        .player-token { width: 20px; height: 20px; background: red; border-radius: 50%; position: absolute; bottom: 5px; }
-        #controls { margin-top: 20px; background: #34495e; padding: 20px; border-radius: 10px; display: inline-block; }
-        button { padding: 10px 20px; font-size: 18px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; }
+
+        .cell { 
+            background: #ecf0f1; border: 1px solid #2c3e50; color: #2c3e50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px; position: relative;
+        }
+
+        /* توزيع المناطق على الحواف */
+        .top { grid-row: 1; }
+        .bottom { grid-row: 5; }
+        .left { grid-column: 1; }
+        .right { grid-column: 5; }
+        .middle { background: #27ae60; border: none; } /* قلب الخريطة */
+
+        .price { color: #27ae60; font-size: 12px; }
+        .icon { font-size: 24px; margin-bottom: 5px; }
+
+        /* الزار */
+        #dice-box { 
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #2c3e50; margin-left: 10px; border-radius: 15px; border: 4px solid #e67e22;
+        }
+        #dice { 
+            width: 80px; height: 80px; background: white; color: black; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; font-size: 40px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: transform 0.3s;
+        }
+
+        .player-token { 
+            width: 25px; height: 25px; border-radius: 50%; border: 2px solid white;
+            position: absolute; transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
     </style>
 </head>
 <body>
-    <h1>!تم تشغيل مونوبولي ذي قار بنجاح سيدي</h1>
-    <div id="status">اللاعب: <span id="p-name">...</span> | الأموال: <span id="p-money">1500</span>$</div>
-    
-    <div id="game-board" id="board">
+
+<div id="game-container">
+    <div class="board" id="board">
         </div>
 
-    <div id="controls">
-        <button onclick="rollDice()">🎲 ارمِ الزار</button>
-        <p id="dice-result">النتيجة: 0</p>
+    <div id="dice-box">
+        <h2 id="current-player">انتظر دخولك...</h2>
+        <div id="dice">?</div>
+        <br>
+        <button id="roll-btn" onclick="roll()" style="padding: 15px 30px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 10px; font-size: 20px;">ارمي الزار سيدي 🎲</button>
+        <div id="money-display" style="font-size: 25px; margin-top: 20px; color: #2ecc71;">فلوسك: 1500$</div>
     </div>
+</div>
 
-    <script>
-        const socket = io();
-        let myName = "لاعب_" + Math.floor(Math.random() * 1000);
-        document.getElementById('p-name').innerText = myName;
+<script>
+    const socket = io();
+    let myName = "لاعب_" + Math.floor(Math.random() * 99);
+    let myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+    document.getElementById('current-player').innerText = "أهلاً بك: " + myName;
 
-        // أسماء مناطق ذي قار
-        const locations = ["البداية", "الناصرية", "الشطرة", "الرفاعي", "سوق الشيوخ", "قلعة سكر", "الجبايش", "النصر", "البطحاء", "الغراف", "الفجر", "أور الآثار", "سجن الحوت", "الخضر", "الفهود", "الإصلاح"];
+    const zones = [
+        {name: "البداية", icon: "🚩", pos: [1,1]}, {name: "الناصرية", icon: "🏢", pos: [1,2]}, 
+        {name: "الشطرة", icon: "🌾", pos: [1,3]}, {name: "الرفاعي", icon: "🕌", pos: [1,4]},
+        {name: "قلعة سكر", icon: "🏰", pos: [1,5]}, {name: "سوق الشيوخ", icon: "🛒", pos: [2,5]},
+        {name: "الجبايش", icon: "🚣", pos: [3,5]}, {name: "سجن الحوت", icon: "⛓️", pos: [4,5]},
+        {name: "البطحاء", icon: "🐎", pos: [5,5]}, {name: "الغراف", icon: "💧", pos: [5,4]},
+        {name: "النصر", icon: "✌️", pos: [5,3]}, {name: "الفجر", icon: "🌅", pos: [5,2]},
+        {name: "المنار", icon: "💡", pos: [5,1]}, {name: "الفهود", icon: "🐆", pos: [4,1]},
+        {name: "الإصلاح", icon: "🛠️", pos: [3,1]}, {name: "أور", icon: "🏛️", pos: [2,1]}
+    ];
 
-        const boardDiv = document.getElementById('game-board');
-        locations.forEach((loc, i) => {
+    // رسم الخريطة
+    const board = document.getElementById('board');
+    for(let i=1; i<=5; i++) {
+        for(let j=1; j<=5; j++) {
             let div = document.createElement('div');
-            div.className = 'cell';
-            div.id = 'cell-' + i;
-            div.innerText = loc;
-            boardDiv.appendChild(div);
-        });
-
-        socket.emit('join', {name: myName});
-
-        function rollDice() {
-            let steps = Math.floor(Math.random() * 6) + 1;
-            document.getElementById('dice-result').innerText = "النتيجة: " + steps;
-            socket.emit('move_player', {name: myName, steps: steps});
-        }
-
-        socket.on('update_players', (players) => {
-            // مسح أماكن اللاعبين القديمة
-            document.querySelectorAll('.player-token').forEach(t => t.remove());
-            // رسم اللاعبين في مواقعهم الجديدة
-            for (let id in players) {
-                let p = players[id];
-                let cell = document.getElementById('cell-' + p.pos);
-                let token = document.createElement('div');
-                token.className = 'player-token';
-                if(id === myName) {
-                    token.style.background = 'blue';
-                    document.getElementById('p-money').innerText = p.money;
-                }
-                cell.appendChild(token);
+            let zone = zones.find(z => z.pos[0] === i && z.pos[1] === j);
+            if(zone) {
+                div.className = 'cell';
+                div.id = 'z-' + zones.indexOf(zone);
+                div.innerHTML = `<span class="icon">${zone.icon}</span>${zone.name}<br><span class="price">300$</span>`;
+            } else {
+                div.className = 'middle';
             }
-        });
-    </script>
+            div.style.gridRow = i; div.style.gridColumn = j;
+            board.appendChild(div);
+        }
+    }
+
+    socket.emit('join', {name: myName, color: myColor});
+
+    function roll() {
+        document.getElementById('roll-btn').disabled = true;
+        socket.emit('roll_dice', {name: myName});
+    }
+
+    socket.on('dice_rolled', (data) => {
+        let dice = document.getElementById('dice');
+        dice.style.transform = "rotate(360deg)";
+        setTimeout(() => {
+            dice.innerText = data.value;
+            dice.style.transform = "rotate(0deg)";
+            updatePlayers(data.players);
+            document.getElementById('roll-btn').disabled = false;
+        }, 300);
+    });
+
+    function updatePlayers(players) {
+        document.querySelectorAll('.player-token').forEach(t => t.remove());
+        for(let id in players) {
+            let p = players[id];
+            let cell = document.getElementById('z-' + p.pos);
+            let token = document.createElement('div');
+            token.className = 'player-token';
+            token.style.background = p.color;
+            cell.appendChild(token);
+            if(id === myName) document.getElementById('money-display').innerText = "فلوسك: " + p.money + "$";
+        }
+    }
+</script>
 </body>
-  </html>
+    </html>

@@ -5,7 +5,7 @@ from flask_socketio import SocketIO, emit, join_room
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-rooms = {} 
+rooms = {}
 
 @app.route('/')
 def index():
@@ -15,41 +15,43 @@ def index():
 def on_create(data):
     room = data['room']
     if room not in rooms:
-        rooms[room] = {'players': [], 'turn': 0, 'properties': {}}
+        rooms[room] = {'players': [], 'turn': 0, 'properties': {}, 'logs': []}
         join_room(room)
-        emit('status', {'msg': 'تم إنشاء الغرفة سيدي بنجاح', 'success': True})
+        emit('status', {'msg': 'تم إنشاء المملكة بنجاح سيدي'})
 
 @socketio.on('join_game')
 def on_join(data):
     room = data['room']
     if room in rooms:
         join_room(room)
+        # موازنة الرصيد الابتدائي سيدي
         player_data = {
             'name': data['name'], 
             'money': 2000, 
             'pos': 0, 
             'id': request.sid, 
-            'color': data['color']
+            'color': data['color'],
+            'in_jail': False
         }
         rooms[room]['players'].append(player_data)
         emit('update_game', rooms[room], to=room)
-        emit('join_success', {'success': True})
+        emit('join_success')
 
 @socketio.on('roll_dice')
 def on_roll(data):
     room = data['room']
     game = rooms[room]
     player = game['players'][game['turn']]
+    
     if player['id'] == request.sid:
         steps = random.randint(1, 6)
         old_pos = player['pos']
         player['pos'] = (player['pos'] + steps) % 40
         
-        # منطق الراتب عند عبور البداية سيدي
+        # راتب العبور سيدي
         if player['pos'] < old_pos:
             player['money'] += 200
-            emit('log', {'msg': f'💰 {player["name"]} استلم راتب 200$'}, to=room)
-
+        
         game['turn'] = (game['turn'] + 1) % len(game['players'])
         emit('dice_result', {'steps': steps, 'game': game, 'roller': player['name']}, to=room)
 
@@ -62,7 +64,6 @@ def on_buy(data):
         player['money'] -= data['price']
         game['properties'][str(player['pos'])] = player['name']
         emit('update_game', game, to=room)
-        emit('log', {'msg': f'🏘️ {player["name"]} اشترى {data["land_name"]}'}, to=room)
 
 @socketio.on('update_money')
 def on_money(data):

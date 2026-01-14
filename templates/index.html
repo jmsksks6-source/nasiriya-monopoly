@@ -3,45 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ذي قار الملكية Pro</title>
+    <title>مونوبولي ذي قار الملكية</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body { background: #121212; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        body { background: #1a1a1a; color: white; font-family: sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         .hidden { display: none !important; }
-        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 98vw; height: 98vw; background: #27ae60; border: 3px solid #1e8449; margin: 5px auto; position: relative; }
-        .cell { background: white; border: 0.1px solid #ccc; color: #333; font-size: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-weight: bold; overflow: hidden; }
-        .price-tag { color: #27ae60; font-size: 4px; }
-        .owner-tag { position: absolute; top: 0; width: 100%; height: 4px; }
-        /* صورة المركز سيدي */
-        .board-center { grid-column: 2 / 11; grid-row: 2 / 11; background: url('https://i.imgur.com/G9L6TfH.png') center/contain no-repeat; display: flex; align-items: center; justify-content: center; opacity: 0.9; }
-        .token { width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; position: absolute; z-index: 100; transition: all 0.3s ease; }
-        #controls { background: #1e272e; padding: 10px; display: flex; justify-content: space-around; align-items: center; border-top: 3px solid #e67e22; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; }
-        .dice-btn { background: #e67e22; padding: 10px 20px; border-radius: 8px; border: none; color: white; font-weight: bold; }
-        .dice-num { font-size: 25px; background: white; color: #333; padding: 0 10px; border-radius: 5px; border: 2px solid #e67e22; }
-        .shake { animation: shake 0.2s infinite; }
-        @keyframes shake { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(10deg); } }
+        
+        /* اللوحة 11x11 */
+        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 98vw; height: 98vw; background: #27ae60; border: 2px solid #2ecc71; margin: 2px auto; position: relative; }
+        .cell { background: #ecf0f1; border: 0.5px solid #bdc3c7; color: #2c3e50; font-size: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-weight: bold; text-align: center; overflow: hidden; }
+        .price-tag { color: #27ae60; font-size: 4px; margin-top: 1px; }
+        .owner-tag { position: absolute; top: 0; width: 100%; height: 3px; z-index: 5; }
+        
+        /* الصورة المركزية: استخدام رابط ثابت جداً */
+        .board-center { 
+            grid-column: 2 / 11; 
+            grid-row: 2 / 11; 
+            background-color: #27ae60;
+            /* صورة زخرفية أو خريطة كخلفية */
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/e/ec/Dhi_Qar_in_Iraq.svg'); 
+            background-size: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            opacity: 0.9;
+        }
+        .center-text { background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 10px; color: #c0392b; font-size: 14px; font-weight: bold; margin-top: 80px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+        .token { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid white; position: absolute; z-index: 100; transition: all 0.3s ease; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+        
+        /* التحكم السفلي */
+        #controls { background: #2c3e50; padding: 8px; display: flex; justify-content: space-around; align-items: center; border-top: 3px solid #e67e22; position: fixed; bottom: 0; width: 100%; z-index: 1000; box-sizing: border-box; height: 80px; }
+        .dice-btn { background: #e67e22; padding: 10px 25px; border-radius: 8px; font-weight: bold; border: none; color: white; font-size: 14px; box-shadow: 0 3px #a35400; }
+        .dice-btn:active { transform: translateY(2px); }
+        .dice-val { font-size: 28px; background: white; color: #333; padding: 2px 12px; border-radius: 6px; border: 2px solid #e67e22; }
+        .shake { animation: shake 0.4s infinite; }
+        @keyframes shake { 0% { transform: rotate(0); } 25% { transform: rotate(15deg); } 75% { transform: rotate(-15deg); } 100% { transform: rotate(0); } }
     </style>
 </head>
 <body>
 
-<div id="lobby" style="text-align: center; padding-top: 50px;">
+<div id="lobby" style="text-align: center; padding-top: 80px;">
     <h1 style="color: #e67e22;">🏛️ ذي قار الملكية</h1>
-    <input id="p-name" placeholder="اسمك سيدي" style="padding: 10px; margin: 5px;">
-    <input id="r-id" placeholder="رقم الغرفة" style="padding: 10px; margin: 5px;">
-    <button onclick="enter()" style="padding: 10px 30px; background: #e67e22; border: none; color: white;">دخول</button>
+    <input id="p-name" placeholder="اسمك سيدي" style="padding: 10px; border-radius: 5px; border: none;">
+    <input id="r-id" placeholder="رقم الغرفة" style="padding: 10px; border-radius: 5px; border: none;">
+    <br><br>
+    <button onclick="start()" style="padding: 10px 40px; background: #e67e22; color: white; border: none; border-radius: 5px; font-weight: bold;">دخول</button>
 </div>
 
 <div id="game-screen" class="hidden">
     <div class="board" id="board">
-        <div class="board-center"><h1 style="color: #2c3e50; font-size: 15px;">ذي قار</h1></div>
+        <div class="board-center">
+            <div class="center-text">ذي قار الملكية</div>
+        </div>
     </div>
     <div id="controls">
-        <div>
-            <div id="money-info" style="color: #2ecc71; font-weight: bold; font-size: 18px;">💰 2000$</div>
-            <div id="turn-txt" style="font-size: 9px; color: #bdc3c7;">انتظر دورك...</div>
+        <div style="text-align: right;">
+            <div id="money-info" style="color: #2ecc71; font-size: 18px; font-weight: bold;">💰 2000$</div>
+            <div id="msg-log" style="font-size: 8px; color: #ecf0f1; max-width: 150px; white-space: nowrap; overflow: hidden;">أهلاً بك...</div>
         </div>
-        <div id="dice-val" class="dice-num">🎲</div>
-        <button id="roll-btn" class="dice-btn" onclick="roll()">ارمي سيدي</button>
+        <div id="dice-box" class="dice-val">🎲</div>
+        <button id="roll-btn" class="dice-btn" onclick="roll()">ارمي الزار</button>
     </div>
 </div>
 
@@ -50,20 +75,22 @@
     let myRoom, myName, myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
     let playerPositions = {};
 
+    // التأكد من ترتيب المناطق ليطابق منطق السيرفر (30 = اذهب للسجن)
     const names = ["الثورة", "الشموخ", "أريدو", "السكك", "سومر", "المنصورية", "الحبوبي", "الجبايش", "سوق الشيوخ", "الإسكان", "أور", "الفهود", "النصر", "الرفاعي", "الشطرة", "الغدير"];
     const zones = [];
     for(let i=0; i<40; i++) {
         if(i === 0) zones.push({n: "البداية", t: "start", i: "🚩", p: 0});
-        else if(i === 10) zones.push({n: "سجن الحوت", t: "jail", i: "⛓️", p: 0});
-        else if(i === 20) zones.push({n: "مواقف", t: "park", i: "🅿️", p: 0});
-        else if(i === 30) zones.push({n: "للسجن!", t: "to_jail", i: "👮", p: 0});
+        else if(i === 10) zones.push({n: "سجن الحوت", t: "jail", i: "⛓️", p: 0}); // زاوية السجن
+        else if(i === 20) zones.push({n: "مواقف مجانية", t: "park", i: "🅿️", p: 0});
+        else if(i === 30) zones.push({n: "اذهب للسجن!", t: "to_jail", i: "👮", p: 0}); // زاوية الذهاب للسجن
         else if(i % 5 === 0) zones.push({n: "حظ", t: "luck", i: "📦", p: 0});
-        else zones.push({n: names[i%names.length], t: "p", p: 100 + (i*15), i: "🏘️"});
+        else zones.push({n: names[i%names.length], t: "p", p: 100 + (i*10), i: "🏘️"});
     }
 
-    function enter() {
+    function start() {
         myRoom = document.getElementById('r-id').value;
         myName = document.getElementById('p-name').value;
+        if(!myRoom || !myName) return alert("البيانات ناقصة سيدي");
         socket.emit('create_room', {room: myRoom});
         socket.emit('join_game', {room: myRoom, name: myName, color: myColor});
     }
@@ -75,10 +102,20 @@
     });
 
     function renderBoard() {
-        const b = document.getElementById('board'); 
+        const b = document.getElementById('board');
+        // الحفاظ على المركز
+        const center = b.querySelector('.board-center');
+        b.innerHTML = "";
+        b.appendChild(center);
+
         for(let i=0; i<40; i++) {
             let r, c;
-            if(i<11) { r=1; c=i+1; } else if(i<20) { r=i-9; c=11; } else if(i<31) { r=11; c=31-i; } else { r=41-i; c=1; }
+            // خوارزمية الترتيب الصحيحة (عكس عقارب الساعة)
+            if(i<11) { r=11; c=11-i; } // الصف السفلي: يمين لليسار
+            else if(i<20) { r=11-(i-10); c=1; } // العمود الأيسر: تحت لفوق
+            else if(i<30) { r=1; c=(i-20)+1; } // الصف العلوي: يسار ليمين
+            else { r=(i-30)+1; c=11; } // العمود الأيمن: فوق لتحت
+
             let d = document.createElement('div'); d.className = 'cell'; d.id = 'z-' + i;
             d.style.gridRow = r; d.style.gridColumn = c;
             d.innerHTML = `<div class="owner-tag" id="tag-${i}"></div><span>${zones[i].i}</span><div style="transform: scale(0.7)">${zones[i].n}</div><div class="price-tag">${zones[i].p ? zones[i].p+'$' : ''}</div>`;
@@ -87,23 +124,38 @@
     }
 
     function roll() {
-        document.getElementById('dice-val').classList.add('shake');
+        document.getElementById('dice-box').classList.add('shake');
         socket.emit('roll_dice', {room: myRoom});
     }
 
     socket.on('dice_result', async (data) => {
         const p = data.game.players.find(pl => pl.name === data.roller);
-        document.getElementById('dice-val').classList.remove('shake');
-        document.getElementById('dice-val').innerText = data.steps;
+        document.getElementById('dice-box').classList.remove('shake');
+        document.getElementById('dice-box').innerText = data.steps;
         
         let currentPos = playerPositions[p.name] || 0;
-        for(let i=0; i<data.steps; i++) {
-            currentPos = (currentPos + 1) % 40;
-            updateUI(p.name, currentPos, p.color);
-            await new Promise(r => setTimeout(r, 200));
+        // المشي خطوة بخطوة
+        if(p.jail_turns === 0 || (p.pos !== 10 && currentPos !== 10)) {
+            for(let i=0; i<data.steps; i++) {
+                currentPos = (currentPos + 1) % 40;
+                updateUI(p.name, currentPos, p.color);
+                await new Promise(r => setTimeout(r, 200));
+            }
         }
+        
+        // القفز للسجن إذا تم القبض عليه
+        if(p.pos === 10 && data.game.turn !== p.turn) { // إذا انتقل فجأة للسجن
+             updateUI(p.name, 10, p.color);
+        }
+
         playerPositions[p.name] = p.pos;
         if(data.roller === myName) checkAction(p.pos, data.game);
+    });
+
+    socket.on('log', (data) => {
+        document.getElementById('msg-log').innerText = data.msg;
+        document.getElementById('msg-log').style.color = '#e74c3c';
+        setTimeout(() => document.getElementById('msg-log').style.color = '#ecf0f1', 2000);
     });
 
     function updateUI(name, pos, color) {
@@ -116,28 +168,33 @@
     function checkAction(pos, game) {
         const zone = zones[pos];
         if(zone.t === 'p' && !game.properties[pos]) {
-            if(confirm(`هل تشتري ${zone.n} بـ ${zone.p}$ سيدي؟`)) {
+            if(confirm(`هل تشتري ${zone.n} بـ ${zone.p}$؟`)) {
                 socket.emit('buy_land', {room: myRoom, name: myName, price: zone.p, land_name: zone.n});
             }
         } else if(zone.t === 'luck') {
             let win = (Math.floor(Math.random()*5)+1)*50;
-            alert(`📦 صندوق الحظ: ربحت ${win}$!`);
+            alert(`📦 ربحت ${win}$ من الصندوق!`);
             socket.emit('update_money', {room: myRoom, name: myName, amount: win});
         }
     }
 
     socket.on('update_game', (game) => {
         game.players.forEach(p => {
-            if(!playerPositions[p.name]) updateUI(p.name, p.pos, p.color);
-            if(p.name === myName) document.getElementById('money-info').innerText = "💰 " + p.money + "$";
+            if(!playerPositions[p.name]) updateUI(p.name, p.pos, p.color); // رسم أولي
+            if(p.name === myName) {
+                document.getElementById('money-info').innerText = "💰 " + p.money + "$";
+                document.getElementById('roll-btn').disabled = (game.players[game.turn].name !== myName);
+                if(game.players[game.turn].name === myName) {
+                    document.getElementById('msg-log').innerText = "دورك الآن سيدي!";
+                } else {
+                    document.getElementById('msg-log').innerText = "الدور عند: " + game.players[game.turn].name;
+                }
+            }
         });
         for(let pos in game.properties) {
             const owner = game.players.find(pl => pl.name === game.properties[pos]);
             if(owner) document.getElementById('tag-'+pos).style.background = owner.color;
         }
-        const turnP = game.players[game.turn];
-        document.getElementById('turn-txt').innerText = "دور الملك: " + turnP.name;
-        document.getElementById('roll-btn').disabled = (turnP.name !== myName);
     });
 </script>
 </body>

@@ -1,12 +1,13 @@
-import os
 from flask import Flask, render_template
+from flask_socketio import SocketIO
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+socketio = SocketIO(app)
 
 @app.route('/')
 def index():
-    return "<h1>تم تشغيل مونوبولي ذي قار بنجاح سيدي!</h1><p>السيرفر يعمل الآن للأبد.</p>"
+    # هذا السطر سيبحث عن ملف اسمه index.html داخل مجلد templates
+    return render_template('index.html')
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=10000)
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=10000)

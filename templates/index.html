@@ -1,19 +1,67 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مونوبولي ذي قار - الملكية</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; margin: 0; }
+        #lobby { padding-top: 100px; }
+        .hidden { display: none; }
+        #game-screen { display: flex; flex-direction: row; padding: 20px; justify-content: center; }
+        .board { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); width: 450px; height: 450px; background: #27ae60; border: 5px solid #1e8449; }
+        .cell { background: white; border: 1px solid #2c3e50; color: #333; font-size: 10px; font-weight: bold; position: relative; display: flex; align-items: center; justify-content: center; }
+        .token { width: 15px; height: 15px; border-radius: 50%; position: absolute; border: 2px solid white; }
+        input, button { padding: 12px; margin: 10px; border-radius: 8px; border: none; font-size: 16px; }
+        button { background: #e67e22; color: white; cursor: pointer; font-weight: bold; }
+        #controls { width: 250px; background: #2c3e50; margin-right: 20px; padding: 20px; border-radius: 15px; }
+    </style>
+</head>
+<body>
+
+<div id="lobby">
+    <h1>🏛️ ردهة مونوبولي ذي قار</h1>
+    <input id="p-name" placeholder="اسمك سيدي">
+    <input id="r-id" placeholder="رقم الغرفة">
+    <br>
+    <button onclick="createRoom()">إنشاء غرفة جديدة ➕</button>
+    <button onclick="joinRoom()">انضمام للغرفة 🎮</button>
+</div>
+
+<div id="game-screen" class="hidden">
+    <div id="controls">
+        <h3 id="turn-info">انتظر دورك...</h3>
+        <div id="dice-val" style="font-size: 40px; margin: 10px;">🎲</div>
+        <button id="roll-btn" onclick="roll()">ارمي الزار سيدي</button>
+        <div id="money" style="color: #2ecc71; font-size: 20px;">فلوسك: 1500$</div>
+    </div>
+    <div class="board" id="board"></div>
+</div>
+
 <script>
-    // أضف هذه الوظائف داخل الـ script للتأكد من الربط
+    const socket = io();
+    let myRoom = "";
+    let myName = "";
+    const myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+
+    const zones = [
+        "البداية", "الحبوبي", "قطار الناصرية", "صندوق الحظ", "الشطرة", 
+        "سوق الشيوخ", "الجبايش", "سجن الحوت", "الرفاعي", "قلعة سكر", 
+        "قطار الغراف", "صندوق الحظ", "البطحاء", "النصر", "الفجر", "أور"
+    ];
+
     function createRoom() {
         myRoom = document.getElementById('r-id').value;
-        if(!myRoom) return alert("ادخل رقم الغرفة سيدي");
+        if(!myRoom) return alert("ادخل رقم الغرفة");
         socket.emit('create_room', {room: myRoom});
     }
 
-    socket.on('status', (data) => {
-        alert(data.msg);
-    });
+    socket.on('status', (data) => alert(data.msg));
 
     function joinRoom() {
         myName = document.getElementById('p-name').value;
         myRoom = document.getElementById('r-id').value;
-        if(!myName || !myRoom) return alert("اكمل البيانات سيدي");
+        if(!myName || !myRoom) return alert("اكمل البيانات");
         socket.emit('join_game', {room: myRoom, name: myName, color: myColor});
     }
 
@@ -22,14 +70,42 @@
             document.getElementById('lobby').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             renderBoard();
-        } else {
-            alert(data.msg);
-        }
+        } else alert(data.msg);
     });
 
-    // التأكد من استلام التحديثات من الغرفة
-    socket.on('update_game', (game) => {
-        console.log("تحديث اللعبة مستلم سيدي");
-        updateUI(game);
+    function renderBoard() {
+        const b = document.getElementById('board');
+        b.innerHTML = "";
+        const pos = [[1,1],[1,2],[1,3],[1,4],[1,5],[2,5],[3,5],[4,5],[5,5],[5,4],[5,3],[5,2],[5,1],[4,1],[3,1],[2,1]];
+        zones.forEach((z, i) => {
+            let d = document.createElement('div');
+            d.className = 'cell'; d.id = 'z-' + i;
+            d.style.gridRow = pos[i][0]; d.style.gridColumn = pos[i][1];
+            d.innerText = z;
+            b.appendChild(d);
+        });
+    }
+
+    function roll() { socket.emit('roll_dice', {room: myRoom}); }
+
+    socket.on('update_game', (game) => updateUI(game));
+    socket.on('dice_result', (data) => {
+        document.getElementById('dice-val').innerText = data.steps;
+        updateUI(data.game);
     });
+
+    function updateUI(game) {
+        document.querySelectorAll('.token').forEach(t => t.remove());
+        game.players.forEach(p => {
+            let t = document.createElement('div');
+            t.className = 'token'; t.style.background = p.color;
+            document.getElementById('z-' + p.pos).appendChild(t);
+            if(p.name === myName) document.getElementById('money').innerText = "فلوسك: " + p.money + "$";
+        });
+        const turnPlayer = game.players[game.turn];
+        document.getElementById('turn-info').innerText = "دور: " + turnPlayer.name;
+        document.getElementById('roll-btn').disabled = (turnPlayer.name !== myName);
+    }
 </script>
+</body>
+</html>

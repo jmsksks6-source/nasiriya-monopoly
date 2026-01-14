@@ -15,37 +15,43 @@ def index():
 def on_create(data):
     room = data['room']
     if room not in rooms:
-        rooms[room] = {'players': [], 'turn': 0, 'properties': {}}
-        emit('status', {'msg': f'تم إنشاء الغرفة {room} بنجاح سيدي', 'success': True})
-    else:
-        emit('status', {'msg': 'الغرفة موجودة بالفعل سيدي', 'success': True})
+        rooms[room] = {'players': [], 'turn': 0, 'properties': {}} # properties: {pos: owner_name}
+        join_room(room)
+        emit('status', {'msg': 'تم إنشاء الغرفة بنجاح سيدي', 'success': True})
 
 @socketio.on('join_game')
 def on_join(data):
     room = data['room']
-    name = data['name']
     if room in rooms:
         join_room(room)
-        # منع تكرار نفس اللاعب
-        player_data = {'name': name, 'money': 1500, 'pos': 0, 'id': request.sid, 'color': data['color']}
+        player_data = {'name': data['name'], 'money': 1500, 'pos': 0, 'id': request.sid, 'color': data['color']}
         rooms[room]['players'].append(player_data)
-        # إرسال التحديث لكل من في الغرفة حصراً
         emit('update_game', rooms[room], to=room)
         emit('join_success', {'success': True})
-    else:
-        emit('join_success', {'success': False, 'msg': 'الغرفة غير موجودة، قم بإنشائها أولاً سيدي'})
+
+@socketio.on('buy_land')
+def on_buy(data):
+    room = data['room']
+    game = rooms[room]
+    player = next(p for p in game['players'] if p['name'] == data['name'])
+    price = data['price']
+    
+    if player['money'] >= price:
+        player['money'] -= price
+        game['properties'][str(player['pos'])] = player['name']
+        emit('update_game', game, to=room)
+        emit('log', {'msg': f'🏦 {player["name"]} اشترى {data["land_name"]}'}, to=room)
 
 @socketio.on('roll_dice')
 def on_roll(data):
     room = data['room']
-    if room in rooms:
-        game = rooms[room]
-        current_player = game['players'][game['turn']]
-        if current_player['id'] == request.sid:
-            steps = random.randint(1, 6)
-            current_player['pos'] = (current_player['pos'] + steps) % 16
-            game['turn'] = (game['turn'] + 1) % len(game['players'])
-            emit('dice_result', {'steps': steps, 'game': game, 'roller': current_player['name']}, to=room)
+    game = rooms[room]
+    player = game['players'][game['turn']]
+    if player['id'] == request.sid:
+        steps = random.randint(1, 6)
+        player['pos'] = (player['pos'] + steps) % 20 # خريطة أكبر 20 منطقة
+        game['turn'] = (game['turn'] + 1) % len(game['players'])
+        emit('dice_result', {'steps': steps, 'game': game, 'roller': player['name']}, to=room)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))

@@ -3,128 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مونوبولي ذي قار Pro</title>
+    <title>مونوبولي ذي قار الملكية</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        /* تصميم متجاوب للهاتف سيدي */
-        body { background: #121212; color: white; font-family: sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
-        #game-screen { display: flex; flex-direction: column; height: 100%; }
-        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 98vw; height: 98vw; background: #27ae60; border: 4px solid #1e8449; margin: auto; position: relative; }
-        .cell { background: white; border: 0.5px solid #ccc; color: #333; font-size: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-        .owner-tag { position: absolute; top: 0; width: 100%; height: 4px; }
-        .token { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid white; position: absolute; z-index: 10; transition: all 0.4s ease-in-out; }
-        #controls { background: #1e272e; padding: 10px; display: flex; justify-content: space-around; align-items: center; border-top: 2px solid #e67e22; }
-        .dice-btn { background: #e67e22; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: none; color: white; }
+        body { background: #121212; color: white; font-family: sans-serif; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        .hidden { display: none !important; }
+        
+        /* خريطة متجاوبة 11x11 */
+        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 96vw; height: 96vw; background: #27ae60; border: 4px solid #1e8449; margin: 5px auto; position: relative; }
+        .cell { background: white; border: 0.2px solid #ccc; color: #333; font-size: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-weight: bold; overflow: hidden; }
+        .price-tag { color: #27ae60; font-size: 4px; font-weight: bold; }
+        .owner-tag { position: absolute; top: 0; width: 100%; height: 4px; z-index: 5; }
+        .token { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid white; position: absolute; z-index: 100; transition: all 0.4s ease; }
+        
+        /* التحكم السفلي لإظهار النرد سيدي */
+        #controls { background: #1e272e; padding: 12px; display: flex; justify-content: space-around; align-items: center; border-top: 3px solid #e67e22; position: fixed; bottom: 0; width: 100%; z-index: 1000; box-sizing: border-box; }
+        .dice-btn { background: #e67e22; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: none; color: white; font-size: 16px; box-shadow: 0 4px #a35400; }
+        .dice-btn:disabled { background: #7f8c8d; box-shadow: none; }
+        .dice-val { font-size: 30px; background: white; color: #333; padding: 0 10px; border-radius: 5px; border: 2px solid #e67e22; min-width: 40px; text-align: center; }
+        
+        /* مؤثرات الزار */
+        .shake { animation: shake 0.3s infinite; }
+        @keyframes shake { 0% { transform: rotate(0); } 50% { transform: rotate(15deg); } 100% { transform: rotate(0); } }
     </style>
 </head>
 <body>
 
-<div id="lobby" style="text-align: center; padding-top: 50px;">
-    <h1>🏛️ ذي قار الملكية</h1>
-    <input id="p-name" placeholder="اسمك">
-    <input id="r-id" placeholder="رقم الغرفة">
-    <button onclick="createRoom()">بدء</button>
+<div id="lobby" style="text-align: center; padding-top: 100px;">
+    <h1 style="color: #e67e22;">🏛️ مونوبولي ذي قار</h1>
+    <input id="p-name" placeholder="اسمك سيدي" style="padding: 12px; margin: 10px; border-radius: 5px; border: none;">
+    <input id="r-id" placeholder="رقم الغرفة" style="padding: 12px; margin: 10px; border-radius: 5px; border: none;">
+    <br>
+    <button onclick="start()" style="padding: 12px 40px; background: #e67e22; border: none; border-radius: 8px; color: white; font-weight: bold;">دخول اللعبة</button>
 </div>
 
 <div id="game-screen" class="hidden">
     <div class="board" id="board"></div>
     <div id="controls">
         <div>
-            <div id="money-info" style="color: #2ecc71;">💰 2000$</div>
-            <div id="turn-txt" style="font-size: 10px;">انتظر دورك</div>
+            <div id="money-info" style="color: #2ecc71; font-size: 20px; font-weight: bold;">💰 2000$</div>
+            <div id="turn-txt" style="font-size: 10px; color: #bdc3c7;">انتظر دورك...</div>
         </div>
-        <div id="dice-val" style="font-size: 30px;">🎲</div>
-        <button id="roll-btn" class="dice-btn" onclick="roll()">ارمي سيدي</button>
+        <div id="dice-display" class="dice-val">🎲</div>
+        <button id="roll-btn" class="dice-btn" onclick="rollDice()">ارمي سيدي</button>
     </div>
 </div>
 
 <script>
     const socket = io();
     let myRoom, myName, myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
-    let playerPositions = {}; // لمتابعة المشي خطوة بخطوة
+    let playerPositions = {};
 
-    // 40 منطقة متوازنة سيدي
+    const names = ["الثورة", "الشموخ", "أريدو", "السكك", "سومر", "المنصورية", "الحبوبي", "الجبايش", "سوق الشيوخ", "الإسكان", "أور", "الفهود", "النصر", "الرفاعي", "الشطرة", "الغدير"];
     const zones = [];
-    const names = ["الثورة", "الشموخ", "أريدو", "السكك", "سومر", "المنصورية", "الحبوبي", "الجبايش", "سوق الشيوخ", "الإسكان"];
     for(let i=0; i<40; i++) {
-        if(i === 0) zones.push({n: "البداية", t: "start", i: "🚩"});
-        else if(i % 5 === 0) zones.push({n: "صندوق الحظ", t: "luck", i: "📦"});
-        else zones.push({n: names[i%names.length], t: "p", p: 100 + (i*10), i: "🏘️"});
+        if(i === 0) zones.push({n: "البداية", t: "start", i: "🚩", p: 0});
+        else if(i % 5 === 0) zones.push({n: "حظ", t: "luck", i: "📦", p: 0});
+        else zones.push({n: names[i%names.length], t: "p", p: 100 + (i*15), i: "🏘️"});
     }
 
-    function createRoom() { myRoom = document.getElementById('r-id').value; socket.emit('create_room', {room: myRoom}); joinRoom(); }
-    function joinRoom() { myName = document.getElementById('p-name').value; myRoom = document.getElementById('r-id').value; socket.emit('join_game', {room: myRoom, name: myName, color: myColor}); }
-    socket.on('join_success', (d) => { document.getElementById('lobby').style.display='none'; document.getElementById('game-screen').classList.remove('hidden'); renderBoard(); });
+    function start() {
+        myRoom = document.getElementById('r-id').value;
+        myName = document.getElementById('p-name').value;
+        if(!myRoom || !myName) return alert("سيدي، املأ البيانات أولاً");
+        socket.emit('create_room', {room: myRoom});
+        socket.emit('join_game', {room: myRoom, name: myName, color: myColor});
+    }
+
+    socket.on('join_success', () => {
+        document.getElementById('lobby').style.display = 'none';
+        document.getElementById('game-screen').classList.remove('hidden');
+        renderBoard();
+    });
 
     function renderBoard() {
         const b = document.getElementById('board'); b.innerHTML = "";
-        // منطق توزيع 40 منطقة على الحواف (11x11)
         for(let i=0; i<40; i++) {
             let r, c;
-            if(i<11) { r=1; c=i+1; }
-            else if(i<20) { r=i-9; c=11; }
-            else if(i<31) { r=11; c=31-i; }
-            else { r=41-i; c=1; }
+            if(i<11) { r=1; c=i+1; } else if(i<20) { r=i-9; c=11; } else if(i<31) { r=11; c=31-i; } else { r=41-i; c=1; }
             let d = document.createElement('div'); d.className = 'cell'; d.id = 'z-' + i;
             d.style.gridRow = r; d.style.gridColumn = c;
-            d.innerHTML = `<div class="owner-tag" id="tag-${i}"></div><span>${zones[i].i}</span><br>${zones[i].n}`;
+            d.innerHTML = `<div class="owner-tag" id="tag-${i}"></div><span>${zones[i].i}</span><div style="transform: scale(0.8)">${zones[i].n}</div><div class="price-tag">${zones[i].p ? zones[i].p+'$' : ''}</div>`;
             b.appendChild(d);
         }
     }
 
-    // المشي خطوة بخطوة سيدي
-    async function moveStepByStep(playerName, targetPos, color) {
-        let currentPos = playerPositions[playerName] || 0;
-        while(currentPos !== targetPos) {
-            currentPos = (currentPos + 1) % 40;
-            updateTokenUI(playerName, currentPos, color);
-            await new Promise(r => setTimeout(r, 300)); // سرعة المشي
-        }
-        playerPositions[playerName] = targetPos;
-        checkLandAction(targetPos);
+    function rollDice() {
+        document.getElementById('dice-display').classList.add('shake');
+        socket.emit('roll_dice', {room: myRoom});
     }
 
-    function updateTokenUI(name, pos, color) {
-        let oldT = document.getElementById('t-' + name);
-        if(oldT) oldT.remove();
+    socket.on('dice_result', async (data) => {
+        const p = data.game.players.find(pl => pl.name === data.roller);
+        document.getElementById('dice-display').classList.remove('shake');
+        document.getElementById('dice-display').innerText = data.steps;
+        
+        let currentPos = playerPositions[p.name] || 0;
+        for(let i=0; i<data.steps; i++) {
+            currentPos = (currentPos + 1) % 40;
+            updateToken(p.name, currentPos, p.color);
+            await new Promise(r => setTimeout(r, 250));
+        }
+        playerPositions[p.name] = p.pos;
+        if(data.roller === myName) handleAction(p.pos, data.game);
+    });
+
+    function updateToken(name, pos, color) {
+        let old = document.getElementById('t-' + name); if(old) old.remove();
         let t = document.createElement('div'); t.className = 'token'; t.id = 't-' + name;
         t.style.background = color;
         document.getElementById('z-' + pos).appendChild(t);
     }
 
-    function roll() { socket.emit('roll_dice', {room: myRoom}); }
-
-    socket.on('dice_result', (data) => {
-        const p = data.game.players.find(pl => pl.name === data.roller);
-        moveStepByStep(p.name, p.pos, p.color);
-        document.getElementById('dice-val').innerText = data.steps;
-    });
+    function handleAction(pos, game) {
+        const zone = zones[pos];
+        if(zone.t === 'p' && !game.properties[pos]) {
+            if(confirm(`هل تشتري ${zone.n} بسعر ${zone.p}$ سيدي؟`)) {
+                socket.emit('buy_land', {room: myRoom, name: myName, price: zone.p, land_name: zone.n});
+            }
+        } else if(zone.t === 'luck') {
+            let win = (Math.floor(Math.random()*5)+1)*50;
+            alert(`📦 صندوق الحظ: ربحت عيدية ${win}$!`);
+            socket.emit('update_money', {room: myRoom, name: myName, amount: win});
+        }
+    }
 
     socket.on('update_game', (game) => {
         game.players.forEach(p => {
-            if(!playerPositions[p.name]) updateTokenUI(p.name, p.pos, p.color);
+            if(!playerPositions[p.name]) updateToken(p.name, p.pos, p.color);
             if(p.name === myName) document.getElementById('money-info').innerText = "💰 " + p.money + "$";
         });
-        // تحديث ألوان الملكية سيدي
         for(let pos in game.properties) {
             const owner = game.players.find(pl => pl.name === game.properties[pos]);
             if(owner) document.getElementById('tag-'+pos).style.background = owner.color;
         }
         const turnP = game.players[game.turn];
+        document.getElementById('turn-txt').innerText = "دور: " + turnP.name;
         document.getElementById('roll-btn').disabled = (turnP.name !== myName);
     });
-
-    function checkLandAction(pos) {
-        if(myName !== document.getElementById('turn-txt').innerText.split(': ')[1]) return;
-        const zone = zones[pos];
-        if(zone.t === 'p') {
-            // هنا يظهر خيار الشراء إذا لم تكن مملوكة (تم شرحه سابقاً)
-        } else if(zone.t === 'luck') {
-            let amount = (Math.floor(Math.random() * 5) + 1) * 50; // عشوائي متوازن
-            alert(`📦 صندوق الحظ: ربحت ${amount}$ سيدي!`);
-            socket.emit('update_money', {room: myRoom, name: myName, amount: amount});
-        }
-    }
 </script>
 </body>
 </html>

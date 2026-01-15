@@ -2,225 +2,278 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ذي قار الملكية - الإصدار الأخير</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ذي قار الملكية - Voice Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
-        body { background: #121212; color: white; font-family: 'Tajawal', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+        body { background: #1a1a1a; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; overflow: hidden; }
         
-        /* لوحة اللاعبين */
-        #leaderboard { width: 98%; max-width: 600px; background: #1e272e; margin: 5px 0; padding: 8px; border-radius: 10px; border: 1px solid #34495e; }
-        .player-stat { display: flex; justify-content: space-between; background: #2c3e50; padding: 6px 12px; margin: 3px 0; border-radius: 5px; font-size: 13px; border-right: 4px solid transparent; }
-
-        /* اللوحة المتجاوبة */
-        #game-container { width: 95vw; height: 95vw; max-width: 550px; max-height: 550px; position: relative; margin-top: 5px; }
-        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 100%; height: 100%; background: #cce5d6; border: 2px solid #333; }
+        #game-ui { display: flex; flex-direction: column; height: 100vh; }
         
-        .cell { border: 0.5px solid #7f8c8d; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; background: white; color: black; padding: 0; overflow: hidden; font-size: 1.8vmin; }
-        .cell-header { width: 100%; height: 20%; border-bottom: 0.5px solid #333; }
-        .owner-strip { position: absolute; bottom: 0; width: 100%; height: 4px; }
+        /* شريط المعلومات العلوي */
+        #top-bar { padding: 10px; background: #2d3436; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .mic-btn { background: #e74c3c; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; color: white; transition: 0.3s; }
+        .mic-active { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.1);} 100% {transform: scale(1);} }
 
-        .center-box { 
-            grid-column: 2 / 11; grid-row: 2 / 11; 
-            background: #27ae60 url('https://upload.wikimedia.org/wikipedia/commons/e/ec/Dhi_Qar_in_Iraq.svg') no-repeat center;
-            background-size: contain; display: flex; align-items: center; justify-content: center;
-        }
-        .center-overlay { background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; color: #f1c40f; font-size: 4vmin; font-weight: bold; }
+        /* الخريطة */
+        #board-container { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #2c3e50; overflow: hidden; }
+        .board { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 98vmin; height: 98vmin; background: #dfe6e9; border: 4px solid #000; font-size: 0.8em; }
+        
+        .cell { position: relative; border: 1px solid #b2bec3; display: flex; flex-direction: column; align-items: center; text-align: center; color: #000; font-weight: bold; font-size: 10px; }
+        .color-bar { width: 100%; height: 20%; background: #bdc3c7; }
+        .house-container { position: absolute; top: 2px; display: flex; gap: 1px; }
+        .house-icon { width: 6px; height: 6px; background: #27ae60; border: 1px solid #fff; }
+        .hotel-icon { width: 10px; height: 10px; background: #c0392b; border: 1px solid #fff; }
 
-        .token { width: 3.5vmin; height: 3.5vmin; border-radius: 50%; border: 1.5px solid #fff; position: absolute; z-index: 100; box-shadow: 0 0 5px rgba(0,0,0,0.5); transition: all 0.3s ease-out; }
-
+        .center { grid-column: 2 / 11; grid-row: 2 / 11; background: #1a1a1a; display: flex; flex-direction: column; justify-content: center; align-items: center; color: gold; }
+        
         /* التحكم */
-        #controls-area { width: 100%; max-width: 600px; display: flex; justify-content: space-around; align-items: center; background: #2c3e50; padding: 10px; position: fixed; bottom: 0; border-radius: 15px 15px 0 0; }
-        .btn { background: #e67e22; border: none; color: white; padding: 12px 20px; border-radius: 8px; font-weight: bold; font-family: inherit; }
-        .btn-trade { background: #3498db; }
+        #controls { padding: 15px; background: #2d3436; display: flex; gap: 10px; justify-content: center; border-top: 2px solid gold; }
+        button { padding: 12px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-family: inherit; }
+        .btn-roll { background: gold; color: #000; }
+        .btn-buy { background: #3498db; color: white; display: none; }
+        .btn-build { background: #e67e22; color: white; display: none; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: #2c3e50; padding: 15px; border-radius: 10px; width: 90%; max-width: 400px; }
-        .prop-item { display: flex; align-items: center; font-size: 12px; margin: 2px 0; }
+        .token { width: 15px; height: 15px; border-radius: 50%; border: 2px solid white; position: absolute; z-index: 10; transition: all 0.5s ease; box-shadow: 0 0 5px black; bottom: 5px;}
     </style>
 </head>
 <body>
 
-<div id="lobby" style="text-align: center; margin-top: 30vh;">
-    <h1 style="color:#f1c40f;">👑 ذي قار الملكية</h1>
-    <input id="p-name" placeholder="اسمك" style="padding:12px; border-radius:8px; border:none; margin:5px;"><br>
-    <input id="r-id" placeholder="رقم الغرفة" style="padding:12px; border-radius:8px; border:none; margin:5px;"><br>
-    <button class="btn" onclick="start()">دخول المملكة</button>
+<div id="login" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#1a1a1a; z-index:999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+    <h1 style="color:gold; text-shadow:0 0 10px orange;">👑 ذي قار الملكية</h1>
+    <input id="name" placeholder="اسمك الكريم" style="padding:10px; margin:5px; text-align:center;">
+    <input id="room" placeholder="رقم الغرفة" style="padding:10px; margin:5px; text-align:center;">
+    <button onclick="startGame()" class="btn-roll">دخول</button>
 </div>
 
-<div id="game-screen" style="display:none; width: 100%; display: flex; flex-direction: column; align-items: center;">
-    <div id="leaderboard"></div>
+<div id="game-ui" style="display:none;">
+    <div id="top-bar">
+        <div id="status">الرصيد: 1500$</div>
+        <button id="mic-btn" class="mic-btn" onclick="toggleMic()">🎤</button>
+    </div>
 
-    <div id="game-container">
+    <div id="board-container">
         <div class="board" id="board">
-            <div class="center-box"><div class="center-overlay">الناصرية</div></div>
+            <div class="center">
+                <h1 style="margin:0;">DHI QAR</h1>
+                <div id="msg-box" style="color:white; margin-top:10px; font-size:12px;"></div>
+            </div>
         </div>
     </div>
 
-    <div id="controls-area">
-        <button class="btn btn-trade" onclick="showTradeModal()">🤝 مقايضة</button>
-        <div id="dice-display" style="font-size: 7vmin; background:white; color:black; padding:5px 15px; border-radius:10px;">🎲</div>
-        <button class="btn" id="roll-btn" onclick="roll()">ارمي الزار</button>
+    <div id="controls">
+        <button id="roll-btn" class="btn-roll" onclick="rollDice()">🎲 ارمي الزار</button>
+        <button id="buy-btn" class="btn-buy" onclick="buyProp()">🏠 شراء</button>
+        <button id="build-btn" class="btn-build" onclick="buildHouse()">🏗️ تطوير</button>
     </div>
 </div>
 
-<div id="trade-modal" class="modal">
-    <div class="modal-content">
-        <h3 style="color:#f1c40f">💰 عقد مقايضة أراضي وأموال</h3>
-        <select id="trade-target" style="width:100%; padding:8px;"></select>
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <div style="flex:1">
-                <small>أنت تعطي ($):</small>
-                <input type="number" id="money-give" value="0" style="width:100%">
-                <div id="my-props" style="height:100px; overflow-y:auto; background:#34495e; margin-top:5px;"></div>
-            </div>
-            <div style="flex:1">
-                <small>تطلب ($):</small>
-                <input type="number" id="money-want" value="0" style="width:100%">
-                <div id="target-props" style="height:100px; overflow-y:auto; background:#34495e; margin-top:5px;"></div>
-            </div>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:15px;">
-            <button class="btn" onclick="sendTrade()">إرسال</button>
-            <button class="btn" style="background:#e74c3c" onclick="closeTrade()">إغاء</button>
-        </div>
-    </div>
-</div>
+<audio id="s-roll" src="https://www.soundjay.com/misc/sounds/dice-throw-1.mp3"></audio>
+<audio id="s-buy" src="https://www.soundjay.com/button/sounds/button-3.mp3"></audio>
+<audio id="s-build" src="https://www.soundjay.com/mechanical/sounds/clank-car-crash-collision-1.mp3"></audio>
 
 <script>
     const socket = io();
-    let myName, myRoom, myColor = '#'+Math.floor(Math.random()*16777215).toString(16);
-    let gameState = null;
+    let myName, myRoom, myMoney = 1500;
+    let localStream, peerConnection;
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let peers = {}; // لتخزين اتصالات الصوت
 
-    const colors = { brown: '#795548', lblue: '#81d4fa', pink: '#e91e63', orange: '#ff9800', red: '#f44336', yellow: '#ffeb3b', green: '#4caf50', dblue: '#3f51b5' };
-    const zones = [
-        {n:"البداية", t:"corner"}, {n:"سوق الشيوخ", g:"brown", p:60}, {n:"حظ", t:"luck"}, {n:"العكيكة", g:"brown", p:60}, {n:"ضريبة", t:"tax"}, {n:"كراج بغداد", t:"station", p:200}, 
-        {n:"كرمة بني سعيد", g:"lblue", p:100}, {n:"حظ", t:"luck"}, {n:"الطار", g:"lblue", p:100}, {n:"الفهود", g:"lblue", p:120}, {n:"سجن", t:"corner"}, 
-        {n:"حي الفداء", g:"pink", p:140}, {n:"كهرباء", t:"util", p:150}, {n:"حي الشهداء", g:"pink", p:140}, {n:"حي الشموخ", g:"pink", p:160}, {n:"كراج البصرة", t:"station", p:200},
-        {n:"حي سومر", g:"orange", p:180}, {n:"حظ", t:"luck"}, {n:"شارع بغداد", g:"orange", p:180}, {n:"حي اريدو", g:"orange", p:200}, {n:"موقف", t:"corner"},
-        {n:"الحبوبي", g:"red", p:220}, {n:"حظ", t:"luck"}, {n:"شارع النيل", g:"red", p:220}, {n:"المتنزه", g:"red", p:240}, {n:"محطة ناصرية", t:"station", p:200},
-        {n:"مدينة أور", g:"yellow", p:260}, {n:"الزقورة", g:"yellow", p:260}, {n:"ماء", t:"util", p:150}, {n:"المتحف", g:"yellow", p:280}, {n:"للسجن", t:"corner"},
-        {n:"الإدارة المحلية", g:"green", p:300}, {n:"إبراهيم الخليل", g:"green", p:300}, {n:"حظ", t:"luck"}, {n:"حي المتنزه", g:"green", p:320}, {n:"القطار", t:"station", p:200},
-        {n:"حظ", t:"luck"}, {n:"المنصورية", g:"dblue", p:350}, {n:"ضريبة", t:"tax"}, {n:"الكورنيش", g:"dblue", p:400}
-    ];
+    // تعريف أسماء المناطق للعرض فقط (البيانات الحقيقية في السيرفر)
+    const zoneNames = ["البداية", "سوق الشيوخ", "حظ", "العكيكة", "ضريبة", "كراج بغداد", "كرمة", "فرصة", "الطار", "الفهود", "سجن", "الفداء", "كهرباء", "الشهداء", "الشموخ", "كراج البصرة", "سومر", "حظ", "ش بغداد", "اريدو", "موقف", "الحبوبي", "فرصة", "ش النيل", "المتنزه", "محطة", "أور", "الزقورة", "ماء", "المتحف", "للسجن", "الإدارة", "إبراهيم", "حظ", "المتنزه", "قطار", "فرصة", "المنصورية", "ضريبة", "الكورنيش"];
 
-    function start() {
-        myName = document.getElementById('p-name').value;
-        myRoom = document.getElementById('r-id').value;
-        if(myName && myRoom) {
-            socket.emit('create_room', {room: myRoom});
-            socket.emit('join_game', {room: myRoom, name: myName, color: myColor});
-        }
+    function startGame() {
+        myName = document.getElementById('name').value;
+        myRoom = document.getElementById('room').value;
+        if(!myName || !myRoom) return alert("أكمل البيانات سيدي");
+        
+        socket.emit('create_room', {room: myRoom});
+        socket.emit('join_game', {room: myRoom, name: myName, color: '#'+Math.floor(Math.random()*16777215).toString(16)});
     }
 
     socket.on('join_success', () => {
-        document.getElementById('lobby').style.display='none';
-        document.getElementById('game-screen').style.display='flex';
-        buildBoard();
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'flex';
+        renderBoard();
+        setupVoiceChat(); // تجهيز الصوت
     });
 
-    function buildBoard() {
+    function renderBoard() {
         const b = document.getElementById('board');
-        const center = b.querySelector('.center-box');
-        b.innerHTML = ''; b.appendChild(center);
+        // إنشاء الخلايا (نفس المنطق السابق لكن مع إضافة شريط اللون)
         for(let i=0; i<40; i++) {
-            let z = zones[i];
+            if(document.getElementById('cell-'+i)) continue;
             let d = document.createElement('div');
-            d.className = `cell ${z.t || 'land'}`; d.id = `z-${i}`;
+            d.className = 'cell'; d.id = 'cell-'+i;
+            
+            // تحديد الموقع Grid
             let r, c;
-            if(i<11) { r=11; c=11-i; } else if(i<20) { r=11-(i-10); c=1; } else if(i<31) { r=1; c=(i-20)+1; } else { r=(i-30)+1; c=11; }
+            if(i<11) { r=11; c=11-i; }
+            else if(i<20) { r=11-(i-10); c=1; }
+            else if(i<31) { r=1; c=(i-20)+1; }
+            else { r=(i-30)+1; c=11; }
+            if(i===0) {r=11;c=11;} // تصحيح البداية
+            
             d.style.gridRow = r; d.style.gridColumn = c;
-            if(z.g) d.innerHTML = `<div class="cell-header" style="background:${colors[z.g]}"></div><div class="owner-strip" id="owner-${i}"></div><span style="font-weight:bold">${z.n}</span><span>${z.p}$</span>`;
-            else d.innerHTML = `<span>${z.n}</span>`;
+            d.innerHTML = `
+                <div class="color-bar" id="bar-${i}"></div>
+                <div class="house-container" id="house-${i}"></div>
+                <span>${zoneNames[i]}</span>
+                <span id="price-${i}" style="font-size:8px; color:gray;"></span>
+            `;
             b.appendChild(d);
         }
     }
 
-    function roll() { socket.emit('roll_dice', {room: myRoom}); }
-
-    // --- الحركة خطوة بخطوة ---
-    async function moveAnimate(name, steps, currentPos) {
-        let startPos = (currentPos - steps + 40) % 40;
-        for(let i=1; i<=steps; i++) {
-            let next = (startPos + i) % 40;
-            let t = document.querySelector(`.token[data-p="${name}"]`);
-            document.getElementById(`z-${next}`).appendChild(t);
-            await new Promise(r => setTimeout(r, 400));
-        }
-    }
-
-    socket.on('dice_result', async (data) => {
-        document.getElementById('dice-display').innerText = data.steps;
-        const p = data.game.players.find(pl => pl.name === data.roller);
-        await moveAnimate(data.roller, data.steps, p.pos);
+    // --- وظائف اللعب ---
+    function rollDice() { socket.emit('roll_dice', {room: myRoom}); }
+    
+    socket.on('dice_result', (data) => {
+        document.getElementById('s-roll').play();
+        document.getElementById('msg-box').innerText = `${data.roller} رمى ${data.steps}. ${data.msg}`;
+        moveToken(data.roller, data.game);
+        
+        // منطق إظهار الأزرار
+        const me = data.game.players.find(p => p.name === myName);
         if(data.roller === myName) {
-            let z = zones[p.pos];
-            if(z.g && !data.game.properties[p.pos]) {
-                if(confirm(`تشتري ${z.n} بـ ${z.p}$؟`)) socket.emit('buy_land', {room: myRoom, name: myName, pos: p.pos, price: z.p});
+            const pos = me.pos;
+            const prop = data.game.properties[pos];
+            // زر الشراء
+            if(!prop && ![0,2,4,7,10,12,17,20,22,28,30,33,36,38].includes(pos)) {
+                document.getElementById('buy-btn').style.display = 'block';
+                document.getElementById('buy-btn').onclick = () => {
+                    socket.emit('buy_prop', {room: myRoom, name: myName, pos: pos});
+                    document.getElementById('buy-btn').style.display = 'none';
+                };
+            } else {
+                document.getElementById('buy-btn').style.display = 'none';
+            }
+            
+            // زر التطوير (البناء)
+            // (بسيط: يظهر إذا كنت تملك المكان، التحقق الحقيقي في السيرفر)
+            if(prop === myName) {
+                document.getElementById('build-btn').style.display = 'block';
+                document.getElementById('build-btn').onclick = () => {
+                    socket.emit('build_house', {room: myRoom, name: myName, pos: pos});
+                };
+            } else {
+                document.getElementById('build-btn').style.display = 'none';
             }
         }
+    });
+
+    socket.on('play_sound', (data) => {
+        if(data.sound === 'buy') document.getElementById('s-buy').play();
+        if(data.sound === 'build') document.getElementById('s-build').play();
     });
 
     socket.on('update_game', (game) => {
-        gameState = game;
-        const lb = document.getElementById('leaderboard');
-        lb.innerHTML = '';
+        // تحديث الرصيد
+        const me = game.players.find(p => p.name === myName);
+        if(me) document.getElementById('status').innerText = `الرصيد: ${me.money}$`;
+
+        // رسم التوكنات
         game.players.forEach(p => {
-            // لوحة اللاعبين
-            lb.innerHTML += `<div class="player-stat" style="border-right-color: ${p.color}">
-                <span>${p.name} ${game.players[game.turn].name === p.name ? '🎲' : ''}</span>
-                <span style="color:#2ecc71; font-weight:bold;">${p.money}$</span>
-            </div>`;
-            // التوكنات
-            let t = document.querySelector(`.token[data-p="${p.name}"]`);
+            let t = document.getElementById('t-'+p.name);
             if(!t) {
-                t = document.createElement('div'); t.className = 'token';
-                t.dataset.p = p.name; t.style.background = p.color;
+                t = document.createElement('div');
+                t.className = 'token'; t.id = 't-'+p.name;
+                t.style.backgroundColor = p.color;
+                document.body.appendChild(t); // Append to body to move absolutely over grid
             }
-            if(!document.getElementById(`z-${p.pos}`).contains(t)) document.getElementById(`z-${p.pos}`).appendChild(t);
+            // تحريك بسيط (نحتاج حساب موقع الخلية)
+            const cell = document.getElementById('cell-'+p.pos);
+            const rect = cell.getBoundingClientRect();
+            t.style.left = (rect.left + 10) + 'px';
+            t.style.top = (rect.top + 10) + 'px';
         });
-        // تحديث الملاك
-        for(let pos in game.properties) {
-            let owner = game.players.find(pl => pl.name === game.properties[pos]);
-            if(owner) document.getElementById(`owner-${pos}`).style.background = owner.color;
+
+        // تحديث ألوان الملكية والمنازل
+        for(const [pos, ownerName] of Object.entries(game.properties)) {
+            const owner = game.players.find(p => p.name === ownerName);
+            if(owner) document.getElementById('bar-'+pos).style.backgroundColor = owner.color;
         }
-        document.getElementById('roll-btn').disabled = (game.players[game.turn].id !== socket.id);
-    });
-
-    // --- نظام المقايضة ---
-    function showTradeModal() {
-        const sel = document.getElementById('trade-target'); sel.innerHTML = '';
-        gameState.players.forEach(p => { if(p.name !== myName) sel.innerHTML += `<option value="${p.name}">${p.name}</option>`; });
-        updateTradeProps();
-        document.getElementById('trade-modal').style.display = 'flex';
-    }
-    function updateTradeProps() {
-        const me = gameState.players.find(p => p.name === myName);
-        const target = gameState.players.find(p => p.name === document.getElementById('trade-target').value);
-        document.getElementById('my-props').innerHTML = me.owned_props.map(id => `<div class="prop-item"><input type="checkbox" class="my-p" value="${id}"> ${zones[id].n}</div>`).join('');
-        if(target) document.getElementById('target-props').innerHTML = target.owned_props.map(id => `<div class="prop-item"><input type="checkbox" class="trg-p" value="${id}"> ${zones[id].n}</div>`).join('');
-    }
-    document.getElementById('trade-target').onchange = updateTradeProps;
-
-    function sendTrade() {
-        const offer = {
-            money_give: document.getElementById('money-give').value,
-            money_want: document.getElementById('money-want').value,
-            props_give: Array.from(document.querySelectorAll('.my-p:checked')).map(c => c.value),
-            props_want: Array.from(document.querySelectorAll('.trg-p:checked')).map(c => c.value)
-        };
-        socket.emit('propose_trade', {room: myRoom, from: myName, target: document.getElementById('trade-target').value, offer});
-        closeTrade(); alert("تم إرسال العرض!");
-    }
-    function closeTrade() { document.getElementById('trade-modal').style.display = 'none'; }
-
-    socket.on('trade_received', (data) => {
-        if(data.target === myName) {
-            let msg = `طلب من ${data.from}: يعطيك ${data.offer.money_give}$ + ${data.offer.props_give.length} أرض مقابل ${data.offer.money_want}$ + ${data.offer.props_want.length} أرض. موافق؟`;
-            if(confirm(msg)) socket.emit('respond_trade', {room: myRoom, accepted: true, from: data.from, me: myName, offer: data.offer});
+        for(const [pos, count] of Object.entries(game.houses)) {
+            const hCont = document.getElementById('house-'+pos);
+            hCont.innerHTML = '';
+            for(let k=0; k<count; k++) {
+                let h = document.createElement('div');
+                h.className = (count === 5) ? 'hotel-icon' : 'house-icon';
+                hCont.appendChild(h);
+            }
         }
     });
+
+    function moveToken(name, game) {
+        // تم التعامل معه في update_game لكن يمكن إضافة أنيميشن هنا
+    }
+
+    // --- نظام المحادثة الصوتية (WebRTC Simple) ---
+    async function setupVoiceChat() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } catch(e) { console.log("المايك غير مسموح"); }
+    }
+
+    let isMicOn = false;
+    function toggleMic() {
+        isMicOn = !isMicOn;
+        document.getElementById('mic-btn').className = isMicOn ? "mic-btn mic-active" : "mic-btn";
+        if(localStream) {
+            localStream.getAudioTracks()[0].enabled = isMicOn;
+            if(isMicOn) joinVoiceRoom();
+        }
+    }
+
+    function joinVoiceRoom() {
+        // إرسال إشارة لبدء المحادثة
+        socket.emit('voice_signal', { type: 'join', room: myRoom, sender: myName });
+    }
+
+    socket.on('voice_signal', async (data) => {
+        if(data.sender === myName) return;
+        
+        // إعداد Peer Connection بسيط عند استلام إشارة
+        if(!peers[data.sender]) {
+            const pc = new RTCPeerConnection(config);
+            peers[data.sender] = pc;
+            
+            pc.onicecandidate = (event) => {
+                if(event.candidate) {
+                    socket.emit('voice_signal', { type: 'candidate', candidate: event.candidate, target: data.sender, room: myRoom, sender: myName });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                const audio = new Audio();
+                audio.srcObject = event.streams[0];
+                audio.play();
+            };
+            
+            if(localStream) localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            if(data.type === 'join') {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit('voice_signal', { type: 'offer', offer: offer, target: data.sender, room: myRoom, sender: myName });
+            }
+        }
+
+        const pc = peers[data.sender];
+        if(data.type === 'offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit('voice_signal', { type: 'answer', answer: answer, target: data.sender, room: myRoom, sender: myName });
+        } else if(data.type === 'answer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        } else if(data.type === 'candidate') {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+    });
+
 </script>
 </body>
 </html>

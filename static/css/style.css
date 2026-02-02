@@ -1,0 +1,4 @@
+body { background: #1a1a1a; color: white; text-align: center; font-family: Arial; }
+#board { display: grid; grid-template-columns: repeat(11, 1fr); width: 90vmin; height: 90vmin; margin: auto; border: 2px solid gold; }
+#logBox { width: 200px; height: 150px; background: black; position: fixed; right: 10px; top: 10px; overflow-y: auto; font-size: 12px; }
+#rollBtn { padding: 15px; background: orange; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }

@@ -1,0 +1,5 @@
+[
+  {"name": "البداية", "type": "start", "price": 0, "rent": [0]},
+  {"name": "سوق الحلة", "type": "property", "price": 60, "rent": [2, 10, 30]},
+  {"name": "صندوق الحظ", "type": "community"}
+]
